@@ -6,8 +6,6 @@
 
 **在线游玩 / 公開サイト：** [anzellia-puzzle.chenganniwang.chatgpt.site](https://anzellia-puzzle.chenganniwang.chatgpt.site)
 
-<img width="1088" height="941" alt="屏幕截图 2026-09-02 162325" src="https://github.com/user-attachments/assets/a582e952-bc05-451a-81c7-9c43b078326e" />
-
 ---
 
 ## 简体中文
