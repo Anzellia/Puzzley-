@@ -6,6 +6,12 @@
 
 **在线游玩 / 公開サイト：** [anzellia-puzzle.chenganniwang.chatgpt.site](https://anzellia-puzzle.chenganniwang.chatgpt.site)
 
+## 内容预览 / プレビュー
+
+<p align="center">
+  <img src="docs/images/puzzley-preview.jpg" alt="Puzzley 运行画面 / Puzzley プレイ画面" width="900">
+</p>
+
 ---
 
 ## 简体中文
