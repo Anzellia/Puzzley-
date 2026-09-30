@@ -81,6 +81,23 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+.language-button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--frame-line);
+  border-radius: 11px;
+  padding: 0 10px;
+  background: rgba(9, 28, 37, 0.72);
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.language-button svg { width: 16px; }
+.start-screen > .language-button { position: absolute; z-index: 2; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); }
+.header-actions { display: flex; align-items: center; gap: 10px; }
+
 .app-root {
   min-height: 100dvh;
   background:
@@ -337,6 +354,21 @@ button {
   text-align: center;
 }
 
+.level-screen { min-height: 100dvh; padding: max(16px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left)); }
+.level-header { display: flex; max-width: 900px; margin: auto; justify-content: space-between; }
+.level-content { width: min(100%, 900px); margin: clamp(24px, 6vh, 70px) auto 0; }
+.level-content h1 { margin: 0 0 28px; font-size: clamp(2.2rem, 8vw, 4.5rem); letter-spacing: -.06em; }
+.level-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.level-card { display: flex; min-height: 112px; align-items: center; gap: 18px; overflow: hidden; border: 1px solid var(--frame-line); border-radius: 18px; padding: 16px; background: var(--card); color: var(--foreground); text-align: left; cursor: pointer; }
+.level-card:hover:not(:disabled) { border-color: var(--primary); transform: translateY(-2px); }
+.level-card b { color: var(--primary); font-size: 2.3rem; }
+.level-card span { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
+.level-card strong { font-size: 1.05rem; }
+.level-card small { color: var(--muted-foreground); }
+.level-card.recent-card { grid-column: 1 / -1; padding: 0; }
+.level-card.recent-card > img { width: 168px; height: 112px; object-fit: contain; background: rgba(255,255,255,.03); }
+.level-card:disabled { cursor: not-allowed; opacity: .46; }
+
 .game-screen {
   display: flex;
   height: 100dvh;
@@ -360,6 +392,17 @@ button {
   font-size: 0.9rem;
   letter-spacing: 0.04em;
 }
+.game-header .language-button { min-height: 32px; padding-inline: 7px; }
+.back-chevron { transform: rotate(90deg); }
+.drawer-toggle { display: flex; align-items: center; gap: 5px; border: 0; background: transparent; color: var(--foreground); cursor: pointer; }
+.drawer-toggle svg { width: 16px; transition: transform .2s; }
+.drawer-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+.top-drawer { position: absolute; z-index: 100; top: max(54px, env(safe-area-inset-top)); left: 50%; width: min(94vw, 880px); max-height: 0; overflow: hidden; border: 1px solid transparent; border-radius: 0 0 18px 18px; background: rgba(7,19,28,.97); opacity: 0; transform: translateX(-50%) translateY(-12px); transition: max-height .24s, opacity .2s, transform .2s; pointer-events: none; }
+.top-drawer.open { max-height: 190px; border-color: var(--frame-line); opacity: 1; transform: translateX(-50%); pointer-events: auto; }
+.top-drawer p { margin: 10px 14px 3px; color: var(--muted-foreground); font-size: .72rem; }
+.drawer-scroll { display: flex; gap: 8px; overflow-x: auto; padding: 8px 12px 14px; touch-action: pan-x; }
+.drawer-piece { flex: 0 0 84px; width: 84px; height: 84px; border: 1px solid var(--frame-line); border-radius: 12px; padding: 5px; background: var(--card); touch-action: pan-x; }
 
 .game-header strong {
   color: var(--primary);
@@ -393,6 +436,9 @@ button {
     0 24px 65px rgba(0, 0, 0, 0.32),
     inset 0 0 0 5px rgba(255, 255, 255, 0.025);
 }
+
+.board-transform { min-width: 0; width: min(100%, calc((100dvh - 92px) * 1.5)); max-width: 940px; aspect-ratio: 3 / 2; justify-self: center; transform-origin: center; will-change: transform; }
+.board-transform .puzzle-board { width: 100%; height: 100%; }
 
 .board-canvas {
   position: absolute;
@@ -479,6 +525,7 @@ button {
 .game-screen.is-complete .game-stage {
   grid-template-columns: minmax(0, 1fr);
 }
+.game-screen.is-complete .board-transform { width: min(94vw, calc((100dvh - 170px) * 1.5), 940px); }
 
 .game-screen.is-complete .puzzle-board {
   width: min(94vw, calc((100dvh - 170px) * 1.5), 940px);
@@ -582,6 +629,11 @@ button {
 }
 
 @media (max-width: 560px) {
+  .level-grid { grid-template-columns: 1fr; }
+  .level-card.recent-card { grid-column: auto; }
+  .level-card { min-height: 86px; }
+  .level-card.recent-card > img { width: 120px; height: 86px; }
+  .gallery-header .language-button span { display: none; }
   .gallery-header {
     align-items: center;
   }
@@ -604,6 +656,9 @@ button {
     grid-template-columns: clamp(48px, 14.5vw, 66px) minmax(0, 1fr) clamp(48px, 14.5vw, 66px);
     gap: 4px;
   }
+  .game-header { justify-content: space-between; gap: 3px; font-size: .74rem; }
+  .game-header .language-button span { display: none; }
+  .drawer-toggle { font-size: .7rem; padding: 4px; }
 
   .piece-slot {
     border-radius: 9px;

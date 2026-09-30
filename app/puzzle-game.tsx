@@ -9,8 +9,11 @@ import {
 } from "react";
 import {
   ArrowRight,
+  ChevronDown,
   Download,
+  Globe2,
   Images,
+  Move,
   Plus,
   RotateCcw,
   Trash2,
@@ -35,13 +38,18 @@ const FRAME_WIDTH = 1200;
 const FRAME_HEIGHT = 800;
 const DB_NAME = "anzellia-puzzle-gallery";
 const STORE_NAME = "images";
+const SAVE_KEY = "puzzley-recent-v2";
+const LANGUAGE_KEY = "puzzley-language";
 
 const LEVELS = [
   { rows: 2, columns: 2, count: 4 },
   { rows: 3, columns: 4, count: 12 },
+  { rows: 10, columns: 15, count: 150 },
+  { rows: 14, columns: 21, count: 294 },
 ] as const;
 
-type Screen = "start" | "gallery" | "game";
+type Screen = "start" | "gallery" | "levels" | "game";
+type Language = "zh" | "en" | "ja";
 type Edge = -1 | 0 | 1;
 type PieceStatus = "waiting" | "free" | "locked";
 
@@ -77,6 +85,141 @@ type TrayState = {
 
 type RelativePosition = { x: number; y: number };
 type Size = { width: number; height: number };
+type ViewState = { scale: number; x: number; y: number };
+type SavedGame = {
+  version: 2;
+  imageId: string;
+  levelIndex: number;
+  pieces: PuzzlePiece[];
+  tray: TrayState;
+  freePositions: Record<string, RelativePosition>;
+  view: ViewState;
+  savedAt: number;
+};
+
+const COPY = {
+  zh: {
+    start: "开始",
+    gallery: "图库",
+    upload: "上传图片",
+    processing: "处理中",
+    loading: "正在读取图库",
+    local: "图片仅保存在当前设备的浏览器中",
+    choose: "选择关卡",
+    recent: "上次拼到",
+    noSave: "暂无未完成的拼图",
+    level: "第 {n} 关",
+    pieces: "{n} 块",
+    completed: "已完成 {done}/{total}",
+    back: "返回图库",
+    resetView: "恢复视图",
+    drawer: "未归位碎片",
+    drawerHint: "滑动浏览 · 长按取出",
+    export: "导出图片",
+    restart: "重新开始",
+    next: "下一关",
+    deleteTitle: "删除这张图片？",
+    deleteBody: "图片将从当前设备的图库中删除，无法恢复。",
+    cancel: "取消",
+    delete: "删除",
+    readError: "无法读取本地图库",
+    openError: "无法打开这张图片",
+    fileError: "请选择图片文件",
+    processError: "无法处理这张图片",
+    deleteError: "无法删除这张图片",
+    exportError: "无法导出图片",
+    saveError: "无法保存最近进度，请检查浏览器存储空间",
+    saved: "进度已自动保存",
+    movePiece: "移动第 {r} 行第 {c} 列拼图",
+    useImage: "使用 {name} 选择关卡",
+    deleteImage: "删除 {name}",
+    newImage: "上传新图片",
+    language: "切换语言",
+  },
+  en: {
+    start: "Start",
+    gallery: "Gallery",
+    upload: "Upload image",
+    processing: "Processing",
+    loading: "Loading gallery",
+    local: "Images stay in this browser on this device",
+    choose: "Choose a level",
+    recent: "Continue",
+    noSave: "No unfinished puzzle",
+    level: "Level {n}",
+    pieces: "{n} pieces",
+    completed: "{done}/{total} completed",
+    back: "Back to gallery",
+    resetView: "Reset view",
+    drawer: "Unplaced pieces",
+    drawerHint: "Scroll to browse · hold to pick up",
+    export: "Export PNG",
+    restart: "Restart",
+    next: "Next level",
+    deleteTitle: "Delete this image?",
+    deleteBody: "This image will be permanently removed from this device.",
+    cancel: "Cancel",
+    delete: "Delete",
+    readError: "Could not read the local gallery",
+    openError: "Could not open this image",
+    fileError: "Please choose an image file",
+    processError: "Could not process this image",
+    deleteError: "Could not delete this image",
+    exportError: "Could not export the image",
+    saveError: "Could not save progress. Check browser storage.",
+    saved: "Progress saved automatically",
+    movePiece: "Move puzzle piece row {r}, column {c}",
+    useImage: "Use {name} to choose a level",
+    deleteImage: "Delete {name}",
+    newImage: "Upload a new image",
+    language: "Change language",
+  },
+  ja: {
+    start: "はじめる",
+    gallery: "ギャラリー",
+    upload: "画像をアップロード",
+    processing: "処理中",
+    loading: "読み込み中",
+    local: "画像はこの端末のブラウザ内だけに保存されます",
+    choose: "ステージ選択",
+    recent: "続きから",
+    noSave: "未完成のパズルはありません",
+    level: "ステージ {n}",
+    pieces: "{n} ピース",
+    completed: "{done}/{total} 完成",
+    back: "ギャラリーへ",
+    resetView: "表示をリセット",
+    drawer: "未配置のピース",
+    drawerHint: "スワイプで閲覧・長押しで取り出す",
+    export: "PNGを書き出す",
+    restart: "やり直す",
+    next: "次のステージ",
+    deleteTitle: "この画像を削除しますか？",
+    deleteBody: "この端末のギャラリーから完全に削除されます。",
+    cancel: "キャンセル",
+    delete: "削除",
+    readError: "ギャラリーを読み込めません",
+    openError: "画像を開けません",
+    fileError: "画像ファイルを選択してください",
+    processError: "画像を処理できません",
+    deleteError: "画像を削除できません",
+    exportError: "画像を書き出せません",
+    saveError: "進行状況を保存できません。ストレージを確認してください。",
+    saved: "進行状況は自動保存されます",
+    movePiece: "{r} 行 {c} 列のピースを移動",
+    useImage: "{name} でステージを選ぶ",
+    deleteImage: "{name} を削除",
+    newImage: "新しい画像をアップロード",
+    language: "言語を変更",
+  },
+} as const;
+
+function format(text: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
+    text,
+  );
+}
 
 type PieceMetrics = {
   cellWidth: number;
@@ -253,12 +396,10 @@ function generatePieces(rows: number, columns: number): PuzzlePiece[] {
         row,
         column,
         edges: {
-          top: row === 0 ? 0 : ((-horizontal[row - 1][column]) as Edge),
-          right:
-            column === columns - 1 ? 0 : vertical[row][column],
+          top: row === 0 ? 0 : (-horizontal[row - 1][column] as Edge),
+          right: column === columns - 1 ? 0 : vertical[row][column],
           bottom: row === rows - 1 ? 0 : horizontal[row][column],
-          left:
-            column === 0 ? 0 : ((-vertical[row][column - 1]) as Edge),
+          left: column === 0 ? 0 : (-vertical[row][column - 1] as Edge),
         },
         status: "waiting",
         zIndex: 1,
@@ -354,11 +495,7 @@ function addEdge(
   path.lineTo(x2, y2);
 }
 
-function buildPiecePath(
-  piece: PuzzlePiece,
-  rows: number,
-  columns: number,
-) {
+function buildPiecePath(piece: PuzzlePiece, rows: number, columns: number) {
   const { cellWidth, cellHeight, cellX, cellY } = getPieceMetrics(
     piece,
     rows,
@@ -367,15 +504,7 @@ function buildPiecePath(
   const depth = Math.min(cellWidth, cellHeight) * 0.19;
   const path = new Path2D();
   path.moveTo(cellX, cellY);
-  addEdge(
-    path,
-    cellX,
-    cellY,
-    cellX + cellWidth,
-    cellY,
-    piece.edges.top,
-    depth,
-  );
+  addEdge(path, cellX, cellY, cellX + cellWidth, cellY, piece.edges.top, depth);
   addEdge(
     path,
     cellX + cellWidth,
@@ -503,29 +632,31 @@ function drawFinalArtwork(
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = "high";
 
+  // Build the decorative puzzle treatment on a separate layer, then mask the
+  // entire layer with the source alpha. This keeps transparent margins, holes,
+  // and partially transparent pixels genuinely transparent in previews/PNGs.
+  const effects = document.createElement("canvas");
+  effects.width = FRAME_WIDTH;
+  effects.height = FRAME_HEIGHT;
+  const effectContext = effects.getContext("2d");
+  if (!effectContext) return;
+
   for (const piece of pieces) {
     const path = buildPiecePath(piece, rows, columns);
-    context.save();
-    context.shadowColor = "rgba(0, 0, 0, 0.34)";
-    context.shadowBlur = 15;
-    context.shadowOffsetY = 6;
-    context.fillStyle = "rgba(255,255,255,0.012)";
-    context.fill(path);
-    context.restore();
-
-    context.save();
-    context.clip(path);
-    context.drawImage(image, 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
-    context.restore();
-
-    context.lineJoin = "round";
-    context.strokeStyle = "rgba(3, 13, 19, 0.4)";
-    context.lineWidth = 5;
-    context.stroke(path);
-    context.strokeStyle = "rgba(255, 255, 255, 0.38)";
-    context.lineWidth = 2;
-    context.stroke(path);
+    effectContext.lineJoin = "round";
+    effectContext.strokeStyle = "rgba(3, 13, 19, 0.4)";
+    effectContext.lineWidth = 5;
+    effectContext.stroke(path);
+    effectContext.strokeStyle = "rgba(255, 255, 255, 0.38)";
+    effectContext.lineWidth = 2;
+    effectContext.stroke(path);
   }
+  effectContext.globalCompositeOperation = "destination-in";
+  effectContext.drawImage(image, 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+  context.drawImage(image, 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+  context.globalCompositeOperation = "source-atop";
+  context.drawImage(effects, 0, 0);
+  context.globalCompositeOperation = "source-over";
 }
 
 function PieceCanvas({
@@ -595,6 +726,11 @@ function GalleryThumbnail({ blob, name }: { blob: Blob; name: string }) {
 
 export function PuzzleGame() {
   const [screen, setScreen] = useState<Screen>("start");
+  const [language, setLanguage] = useState<Language>(() => {
+    if (typeof window === "undefined") return "zh";
+    const stored = localStorage.getItem(LANGUAGE_KEY) as Language | null;
+    return stored && stored in COPY ? stored : "zh";
+  });
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -613,8 +749,19 @@ export function PuzzleGame() {
   >({});
   const [dragging, setDragging] = useState<string | null>(null);
   const [complete, setComplete] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [view, setView] = useState<ViewState>({ scale: 1, x: 0, y: 0 });
   const [stageSize, setStageSize] = useState<Size>({ width: 0, height: 0 });
   const [boardSize, setBoardSize] = useState<Size>({ width: 0, height: 0 });
+  const [recent, setRecent] = useState<SavedGame | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const value = localStorage.getItem(SAVE_KEY);
+      return value ? JSON.parse(value) : null;
+    } catch {
+      return null;
+    }
+  });
 
   const inputRef = useRef<HTMLInputElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -625,73 +772,124 @@ export function PuzzleGame() {
   const stageSizeRef = useRef<Size>({ width: 0, height: 0 });
   const boardSizeRef = useRef<Size>({ width: 0, height: 0 });
   const zCounterRef = useRef(10);
-
+  const saveTimerRef = useRef<number | null>(null);
+  const holdTimerRef = useRef<number | null>(null);
+  const gestureRef = useRef<{
+    pointers: Map<number, { x: number; y: number }>;
+    distance: number;
+    center: { x: number; y: number };
+    start: ViewState;
+  }>({
+    pointers: new Map(),
+    distance: 0,
+    center: { x: 0, y: 0 },
+    start: { scale: 1, x: 0, y: 0 },
+  });
   const level = LEVELS[levelIndex];
+  const t = COPY[language];
+
+  const changeLanguage = () => {
+    const next: Language =
+      language === "zh" ? "en" : language === "en" ? "ja" : "zh";
+    setLanguage(next);
+    localStorage.setItem(LANGUAGE_KEY, next);
+  };
 
   const loadGallery = useCallback(async () => {
     setGalleryLoading(true);
     try {
       setGallery(await listGalleryImages());
     } catch {
-      toast.error("无法读取本地图库");
+      toast.error(COPY[language].readError);
     } finally {
       setGalleryLoading(false);
     }
-  }, []);
-
+  }, [language]);
   const openGallery = useCallback(() => {
     setScreen("gallery");
     setActiveImage(null);
     setActiveRecord(null);
+    setDrawerOpen(false);
     void loadGallery();
   }, [loadGallery]);
 
+  const buildTray = (nextPieces: PuzzlePiece[]): TrayState => {
+    const order = shuffle(nextPieces.map((piece) => piece.id));
+    return {
+      left: order.slice(0, 3),
+      right: order.slice(3, 6),
+      queue: order.slice(6),
+    };
+  };
   const beginLevel = useCallback(
-    (nextLevelIndex: number, existingPieces?: PuzzlePiece[]) => {
-      const nextLevel = LEVELS[nextLevelIndex];
-      const nextPieces = existingPieces
-        ? existingPieces.map((piece) => ({
+    (nextLevelIndex: number, existing?: PuzzlePiece[]) => {
+      const spec = LEVELS[nextLevelIndex];
+      const nextPieces = existing
+        ? existing.map((piece) => ({
             ...piece,
             status: "waiting" as PieceStatus,
             zIndex: 1,
           }))
-        : generatePieces(nextLevel.rows, nextLevel.columns);
-      const order = shuffle(nextPieces.map((piece) => piece.id));
-      const visible = Math.min(6, order.length);
-      const leftCount = Math.ceil(visible / 2);
-      const rightCount = visible - leftCount;
-      const nextTray: TrayState = {
-        left: order.slice(0, leftCount),
-        right: order.slice(leftCount, leftCount + rightCount),
-        queue: order.slice(visible),
-      };
+        : generatePieces(spec.rows, spec.columns);
       setLevelIndex(nextLevelIndex);
       setPieces(nextPieces);
       piecesRef.current = nextPieces;
-      setTray(nextTray);
+      setTray(buildTray(nextPieces));
       setFreePositions({});
       freePositionsRef.current = {};
+      setView({ scale: 1, x: 0, y: 0 });
       setDragging(null);
       setComplete(false);
+      setDrawerOpen(false);
       zCounterRef.current = 10;
     },
     [],
   );
 
-  const startWithRecord = useCallback(
+  const selectRecord = useCallback(
     async (record: GalleryImage) => {
       try {
-        const image = await loadBlobImage(record.normalized);
         setActiveRecord(record);
-        setActiveImage(image);
-        setScreen("game");
-        beginLevel(0);
+        setActiveImage(await loadBlobImage(record.normalized));
+        setScreen("levels");
       } catch {
-        toast.error("无法打开这张图片");
+        toast.error(COPY[language].openError);
       }
     },
-    [beginLevel],
+    [language],
   );
+  const startLevel = (index: number) => {
+    beginLevel(index);
+    setScreen("game");
+  };
+  const resumeRecent = useCallback(async () => {
+    if (!recent) return;
+    const record = gallery.find((item) => item.id === recent.imageId);
+    if (!record) {
+      localStorage.removeItem(SAVE_KEY);
+      setRecent(null);
+      toast.error(t.openError);
+      return;
+    }
+    try {
+      setActiveRecord(record);
+      setActiveImage(await loadBlobImage(record.normalized));
+      setLevelIndex(recent.levelIndex);
+      setPieces(recent.pieces);
+      piecesRef.current = recent.pieces;
+      setTray(recent.tray);
+      setFreePositions(recent.freePositions);
+      freePositionsRef.current = recent.freePositions;
+      setView(recent.view);
+      zCounterRef.current = Math.max(
+        10,
+        ...recent.pieces.map((piece) => piece.zIndex),
+      );
+      setScreen("game");
+    } catch {
+      toast.error(t.openError);
+    }
+  }, [gallery, recent, t.openError]);
 
   const handleUpload = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -699,25 +897,24 @@ export function PuzzleGame() {
       event.target.value = "";
       if (!file) return;
       if (!file.type.startsWith("image/")) {
-        toast.error("请选择图片文件");
+        toast.error(COPY[language].fileError);
         return;
       }
-
       setUploading(true);
       try {
         const record = await normalizeUploadedImage(file);
         await saveGalleryImage(record);
         setGallery((current) => [record, ...current]);
-        await startWithRecord(record);
+        await selectRecord(record);
       } catch (error) {
         toast.error(
-          error instanceof Error ? error.message : "无法处理这张图片",
+          error instanceof Error ? error.message : COPY[language].processError,
         );
       } finally {
         setUploading(false);
       }
     },
-    [startWithRecord],
+    [language, selectRecord],
   );
 
   const confirmDelete = useCallback(async () => {
@@ -727,43 +924,95 @@ export function PuzzleGame() {
       setGallery((current) =>
         current.filter((item) => item.id !== deleteTarget.id),
       );
+      if (recent?.imageId === deleteTarget.id) {
+        localStorage.removeItem(SAVE_KEY);
+        setRecent(null);
+      }
       setDeleteTarget(null);
     } catch {
-      toast.error("无法删除这张图片");
+      toast.error(t.deleteError);
     }
-  }, [deleteTarget]);
+  }, [deleteTarget, recent, t.deleteError]);
 
   useEffect(() => {
     piecesRef.current = pieces;
   }, [pieces]);
-
   useEffect(() => {
     freePositionsRef.current = freePositions;
   }, [freePositions]);
-
   useEffect(() => {
     stageSizeRef.current = stageSize;
   }, [stageSize]);
-
   useEffect(() => {
     boardSizeRef.current = boardSize;
   }, [boardSize]);
 
+  useEffect(() => {
+    if (screen !== "game" || complete || !activeRecord || pieces.length === 0)
+      return;
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(() => {
+      const save: SavedGame = {
+        version: 2,
+        imageId: activeRecord.id,
+        levelIndex,
+        pieces,
+        tray,
+        freePositions,
+        view,
+        savedAt: Date.now(),
+      };
+      try {
+        localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+        setRecent(save);
+      } catch {
+        toast.error(t.saveError);
+      }
+    }, 350);
+    return () => {
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    };
+  }, [
+    activeRecord,
+    complete,
+    freePositions,
+    levelIndex,
+    pieces,
+    screen,
+    t.saveError,
+    tray,
+    view,
+  ]);
+
   useLayoutEffect(() => {
     if (screen !== "game" || !stageRef.current || !boardRef.current) return;
     const measure = () => {
-      const stageRect = stageRef.current?.getBoundingClientRect();
-      const boardRect = boardRef.current?.getBoundingClientRect();
-      if (stageRect) {
-        const nextStage = { width: stageRect.width, height: stageRect.height };
-        setStageSize(nextStage);
-        stageSizeRef.current = nextStage;
+      const sr = stageRef.current?.getBoundingClientRect();
+      const br = boardRef.current?.getBoundingClientRect();
+      if (sr) {
+        const size = { width: sr.width, height: sr.height };
+        setStageSize(size);
+        stageSizeRef.current = size;
       }
-      if (boardRect) {
-        const nextBoard = { width: boardRect.width, height: boardRect.height };
-        setBoardSize(nextBoard);
-        boardSizeRef.current = nextBoard;
+      if (br) {
+        const size = {
+          width: br.width / view.scale,
+          height: br.height / view.scale,
+        };
+        setBoardSize(size);
+        boardSizeRef.current = size;
       }
+      setFreePositions((current) =>
+        Object.fromEntries(
+          Object.entries(current).map(([id, p]) => [
+            id,
+            {
+              x: Math.min(0.94, Math.max(0.06, p.x)),
+              y: Math.min(0.94, Math.max(0.06, p.y)),
+            },
+          ]),
+        ),
+      );
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -774,65 +1023,64 @@ export function PuzzleGame() {
       observer.disconnect();
       window.removeEventListener("orientationchange", measure);
     };
-  }, [screen, complete]);
+  }, [screen, complete, view.scale]);
 
-  const updatePiecePosition = useCallback((id: string, clientX: number, clientY: number) => {
-    const stage = stageRef.current;
-    const piece = piecesRef.current.find((item) => item.id === id);
-    if (!stage || !piece) return;
-    const stageRect = stage.getBoundingClientRect();
-    const metrics = getPieceMetrics(piece, level.rows, level.columns);
-    const scale = boardSizeRef.current.width / FRAME_WIDTH;
-    const halfWidth = Math.max(18, (metrics.canvasWidth * scale) / 2);
-    const halfHeight = Math.max(18, (metrics.canvasHeight * scale) / 2);
-    const lift = Math.min(36, boardSizeRef.current.width * 0.065);
-    const x = Math.min(
-      Math.max(clientX - stageRect.left, halfWidth + 4),
-      stageRect.width - halfWidth - 4,
-    );
-    const y = Math.min(
-      Math.max(clientY - stageRect.top - lift, halfHeight + 4),
-      stageRect.height - halfHeight - 4,
-    );
-    const nextPosition = {
-      x: stageRect.width ? x / stageRect.width : 0.5,
-      y: stageRect.height ? y / stageRect.height : 0.5,
-    };
-    setFreePositions((current) => {
-      const next = { ...current, [id]: nextPosition };
-      freePositionsRef.current = next;
+  const updatePiecePosition = useCallback(
+    (id: string, clientX: number, clientY: number) => {
+      const stage = stageRef.current;
+      const piece = piecesRef.current.find((item) => item.id === id);
+      if (!stage || !piece) return;
+      const rect = stage.getBoundingClientRect();
+      const metrics = getPieceMetrics(piece, level.rows, level.columns);
+      const scale = (boardSizeRef.current.width / FRAME_WIDTH) * view.scale;
+      const hw = Math.max(14, (metrics.canvasWidth * scale) / 2);
+      const hh = Math.max(14, (metrics.canvasHeight * scale) / 2);
+      const x = Math.min(
+        Math.max(clientX - rect.left, hw + 3),
+        rect.width - hw - 3,
+      );
+      const y = Math.min(
+        Math.max(clientY - rect.top - 20, hh + 3),
+        rect.height - hh - 3,
+      );
+      const next = {
+        x: rect.width ? x / rect.width : 0.5,
+        y: rect.height ? y / rect.height : 0.5,
+      };
+      setFreePositions((current) => {
+        const value = { ...current, [id]: next };
+        freePositionsRef.current = value;
+        return value;
+      });
+    },
+    [level.columns, level.rows, view.scale],
+  );
+
+  const removeFromTray = (id: string) =>
+    setTray((current) => {
+      const next = {
+        left: [...current.left],
+        right: [...current.right],
+        queue: current.queue.filter((value) => value !== id),
+      };
+      for (const side of ["left", "right"] as const) {
+        const index = next[side].indexOf(id);
+        if (index >= 0) next[side][index] = next.queue.shift() ?? null;
+      }
       return next;
     });
-  }, [level.columns, level.rows]);
-
   const startDrag = useCallback(
-    (
-      id: string,
-      event: React.PointerEvent,
-      slot?: { side: "left" | "right"; index: number },
-    ) => {
+    (id: string, event: React.PointerEvent, fromTray = false) => {
       if (complete) return;
       event.preventDefault();
+      if (fromTray) removeFromTray(id);
+      setDrawerOpen(false);
       zCounterRef.current += 1;
-      const nextZ = zCounterRef.current;
-
-      if (slot) {
-        setTray((current) => {
-          const next = {
-            left: [...current.left],
-            right: [...current.right],
-            queue: [...current.queue],
-          };
-          const replacement = next.queue.shift() ?? null;
-          next[slot.side][slot.index] = replacement;
-          return next;
-        });
-      }
-
+      const z = zCounterRef.current;
       setPieces((current) => {
         const next = current.map((piece) =>
           piece.id === id
-            ? { ...piece, status: "free" as PieceStatus, zIndex: nextZ }
+            ? { ...piece, status: "free" as PieceStatus, zIndex: z }
             : piece,
         );
         piecesRef.current = next;
@@ -846,118 +1094,130 @@ export function PuzzleGame() {
 
   useEffect(() => {
     if (!dragging) return;
-
-    const handleMove = (event: PointerEvent) => {
+    const move = (event: PointerEvent) => {
       event.preventDefault();
       updatePiecePosition(dragging, event.clientX, event.clientY);
     };
-
-    const finishDrag = (event: PointerEvent) => {
+    const finish = (event: PointerEvent) => {
       event.preventDefault();
       updatePiecePosition(dragging, event.clientX, event.clientY);
-      const stage = stageRef.current;
-      const board = boardRef.current;
-      const piece = piecesRef.current.find((item) => item.id === dragging);
-      if (stage && board && piece) {
-        const stageRect = stage.getBoundingClientRect();
-        const boardRect = board.getBoundingClientRect();
-        const position = freePositionsRef.current[dragging];
-        if (position) {
-          const centerX = position.x * stageRect.width + stageRect.left;
-          const centerY = position.y * stageRect.height + stageRect.top;
-          const targetX =
-            boardRect.left +
-            ((piece.column + 0.5) / level.columns) * boardRect.width;
-          const targetY =
-            boardRect.top + ((piece.row + 0.5) / level.rows) * boardRect.height;
-          const threshold =
-            Math.min(
-              boardRect.width / level.columns,
-              boardRect.height / level.rows,
-            ) * 0.34;
-
-          if (Math.hypot(centerX - targetX, centerY - targetY) <= threshold) {
-            setPieces((current) => {
-              const next = current.map((item) =>
-                item.id === dragging
-                  ? { ...item, status: "locked" as PieceStatus }
-                  : item,
-              );
-              piecesRef.current = next;
-              if (next.every((item) => item.status === "locked")) {
-                window.setTimeout(() => setComplete(true), 160);
-              }
-              return next;
-            });
-            setFreePositions((current) => {
-              const next = { ...current };
-              delete next[dragging];
-              freePositionsRef.current = next;
-              return next;
-            });
-          }
+      const stage = stageRef.current,
+        board = boardRef.current,
+        piece = piecesRef.current.find((item) => item.id === dragging),
+        position = freePositionsRef.current[dragging];
+      if (stage && board && piece && position) {
+        const sr = stage.getBoundingClientRect(),
+          br = board.getBoundingClientRect();
+        const cx = position.x * sr.width + sr.left,
+          cy = position.y * sr.height + sr.top;
+        const tx = br.left + ((piece.column + 0.5) / level.columns) * br.width,
+          ty = br.top + ((piece.row + 0.5) / level.rows) * br.height;
+        const threshold =
+          Math.min(br.width / level.columns, br.height / level.rows) * 0.4;
+        if (Math.hypot(cx - tx, cy - ty) <= threshold) {
+          setPieces((current) => {
+            const next = current.map((item) =>
+              item.id === dragging
+                ? { ...item, status: "locked" as PieceStatus }
+                : item,
+            );
+            piecesRef.current = next;
+            if (next.every((item) => item.status === "locked")) {
+              localStorage.removeItem(SAVE_KEY);
+              setRecent(null);
+              window.setTimeout(() => setComplete(true), 120);
+            }
+            return next;
+          });
+          setFreePositions((current) => {
+            const next = { ...current };
+            delete next[dragging];
+            freePositionsRef.current = next;
+            return next;
+          });
         }
       }
       setDragging(null);
     };
-
-    window.addEventListener("pointermove", handleMove, { passive: false });
-    window.addEventListener("pointerup", finishDrag, { passive: false });
-    window.addEventListener("pointercancel", finishDrag, { passive: false });
+    window.addEventListener("pointermove", move, { passive: false });
+    window.addEventListener("pointerup", finish, { passive: false });
+    window.addEventListener("pointercancel", finish, { passive: false });
     return () => {
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", finishDrag);
-      window.removeEventListener("pointercancel", finishDrag);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
     };
   }, [dragging, level.columns, level.rows, updatePiecePosition]);
+
+  const gestureDown = (event: React.PointerEvent) => {
+    if ((event.target as HTMLElement).closest("button")) return;
+    const g = gestureRef.current;
+    g.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (g.pointers.size === 2) {
+      const [a, b] = [...g.pointers.values()];
+      g.distance = Math.hypot(a.x - b.x, a.y - b.y);
+      g.center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      g.start = view;
+    }
+  };
+  const gestureMove = (event: React.PointerEvent) => {
+    const g = gestureRef.current;
+    if (!g.pointers.has(event.pointerId)) return;
+    g.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (g.pointers.size === 2) {
+      event.preventDefault();
+      const [a, b] = [...g.pointers.values()];
+      const distance = Math.hypot(a.x - b.x, a.y - b.y),
+        center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      setView({
+        scale: Math.min(
+          3,
+          Math.max(0.75, (g.start.scale * distance) / g.distance),
+        ),
+        x: g.start.x + center.x - g.center.x,
+        y: g.start.y + center.y - g.center.y,
+      });
+    }
+  };
+  const gestureUp = (event: React.PointerEvent) =>
+    gestureRef.current.pointers.delete(event.pointerId);
 
   const exportArtwork = useCallback(async () => {
     if (!activeImage) return;
     const canvas = document.createElement("canvas");
-    drawFinalArtwork(
-      canvas,
-      activeImage,
-      pieces,
-      level.rows,
-      level.columns,
-    );
+    drawFinalArtwork(canvas, activeImage, pieces, level.rows, level.columns);
     try {
-      const blob = await canvasToBlob(canvas);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
+      const blob = await canvasToBlob(canvas),
+        url = URL.createObjectURL(blob),
+        link = document.createElement("a");
       link.href = url;
-      link.download = `拼图-${level.count}块.png`;
-      document.body.appendChild(link);
+      link.download = `puzzley-${level.count}.png`;
       link.click();
-      link.remove();
       URL.revokeObjectURL(url);
     } catch {
-      toast.error("无法导出图片");
+      toast.error(t.exportError);
     }
-  }, [activeImage, level.columns, level.count, level.rows, pieces]);
-
-  const restartLevel = useCallback(() => {
-    beginLevel(levelIndex, piecesRef.current);
-  }, [beginLevel, levelIndex]);
-
-  const nextLevel = useCallback(() => {
-    beginLevel(1);
-  }, [beginLevel]);
-
+  }, [activeImage, level, pieces, t.exportError]);
+  const restartLevel = () => beginLevel(levelIndex, piecesRef.current);
+  const waitingPieces = pieces.filter((piece) => piece.status !== "locked");
   const renderSlot = (
     id: string | null,
     side: "left" | "right",
     index: number,
   ) => {
     const piece = pieces.find((item) => item.id === id);
-    if (!piece || !activeImage) return null;
+    if (!piece || !activeImage)
+      return <span className="piece-slot empty" key={`${side}-${index}`} />;
     return (
       <button
         type="button"
         key={`${side}-${index}`}
         className="piece-slot"
-        onPointerDown={(event) => startDrag(piece.id, event, { side, index })}
-        aria-label={`拖动第 ${piece.row + 1} 行第 ${piece.column + 1} 列拼图`}
+        onPointerDown={(event) => startDrag(piece.id, event, true)}
+        aria-label={format(t.movePiece, {
+          r: piece.row + 1,
+          c: piece.column + 1,
+        })}
       >
         <PieceCanvas
           image={activeImage}
@@ -969,6 +1229,17 @@ export function PuzzleGame() {
     );
   };
 
+  const languageButton = (
+    <button
+      type="button"
+      className="language-button"
+      onClick={changeLanguage}
+      aria-label={t.language}
+    >
+      <Globe2 />
+      <span>{language.toUpperCase()}</span>
+    </button>
+  );
   return (
     <main className="app-root">
       <input
@@ -978,9 +1249,9 @@ export function PuzzleGame() {
         className="sr-only"
         onChange={handleUpload}
       />
-
       {screen === "start" && (
         <section className="start-screen">
+          {languageButton}
           <div className="start-grid" aria-hidden="true" />
           <div className="start-lockup">
             <div className="start-mark" aria-hidden="true">
@@ -990,44 +1261,51 @@ export function PuzzleGame() {
               <span />
             </div>
             <h1>拼图</h1>
-            <Button className="primary-action" size="lg" onClick={openGallery}>
-              开始
+            <Button
+              className="primary-action"
+              size="lg"
+              onClick={() => {
+                setScreen("gallery");
+                void loadGallery();
+              }}
+            >
+              {t.start}
               <ArrowRight />
             </Button>
           </div>
         </section>
       )}
-
       {screen === "gallery" && (
         <section className="gallery-screen">
           <header className="gallery-header">
             <div>
-              <p className="eyebrow">PUZZLE</p>
-              <h1>图库</h1>
+              <p className="eyebrow">PUZZLEY</p>
+              <h1>{t.gallery}</h1>
             </div>
-            <Button
-              className="upload-action"
-              onClick={() => inputRef.current?.click()}
-              disabled={uploading}
-            >
-              {uploading ? <RotateCcw className="spin" /> : <Plus />}
-              {uploading ? "处理中" : "上传图片"}
-            </Button>
+            <div className="header-actions">
+              {languageButton}
+              <Button
+                className="upload-action"
+                onClick={() => inputRef.current?.click()}
+                disabled={uploading}
+              >
+                {uploading ? <RotateCcw className="spin" /> : <Plus />}
+                {uploading ? t.processing : t.upload}
+              </Button>
+            </div>
           </header>
-
           <div className="gallery-content">
             {galleryLoading ? (
-              <div className="gallery-empty">正在读取图库</div>
+              <div className="gallery-empty">{t.loading}</div>
             ) : gallery.length === 0 ? (
               <div className="gallery-empty">
-                <Images aria-hidden="true" />
+                <Images />
                 <Button
                   className="primary-action"
                   onClick={() => inputRef.current?.click()}
-                  disabled={uploading}
                 >
                   <Upload />
-                  上传图片
+                  {t.upload}
                 </Button>
               </div>
             ) : (
@@ -1037,17 +1315,20 @@ export function PuzzleGame() {
                     <button
                       type="button"
                       className="gallery-image-button"
-                      onClick={() => void startWithRecord(record)}
-                      aria-label={`使用 ${record.name} 开始拼图`}
+                      onClick={() => void selectRecord(record)}
+                      aria-label={format(t.useImage, { name: record.name })}
                     >
                       <span className="transparency-grid" />
-                      <GalleryThumbnail blob={record.thumbnail} name={record.name} />
+                      <GalleryThumbnail
+                        blob={record.thumbnail}
+                        name={record.name}
+                      />
                     </button>
                     <Button
                       variant="ghost"
                       size="icon-sm"
                       className="delete-button"
-                      aria-label={`删除 ${record.name}`}
+                      aria-label={format(t.deleteImage, { name: record.name })}
                       onClick={() => setDeleteTarget(record)}
                     >
                       <Trash2 />
@@ -1058,99 +1339,239 @@ export function PuzzleGame() {
                   type="button"
                   className="gallery-add-card"
                   onClick={() => inputRef.current?.click()}
-                  disabled={uploading}
-                  aria-label="上传新图片"
+                  aria-label={t.newImage}
                 >
                   <Plus />
                 </button>
               </div>
             )}
           </div>
-          <p className="local-note">图片仅保存在当前设备的浏览器中</p>
+          <p className="local-note">{t.local}</p>
         </section>
       )}
-
-      {screen === "game" && activeImage && activeRecord && (
+      {screen === "levels" && activeRecord && (
+        <section className="level-screen">
+          <header className="level-header">
+            <Button variant="ghost" onClick={openGallery}>
+              <Images />
+              {t.back}
+            </Button>
+            {languageButton}
+          </header>
+          <div className="level-content">
+            <p className="eyebrow">PUZZLEY</p>
+            <h1>{t.choose}</h1>
+            <div className="level-grid">
+              <button
+                className="level-card recent-card"
+                disabled={!recent || recent.imageId !== activeRecord.id}
+                onClick={() => void resumeRecent()}
+              >
+                {recent && recent.imageId === activeRecord.id ? (
+                  <>
+                    <GalleryThumbnail
+                      blob={activeRecord.thumbnail}
+                      name={activeRecord.name}
+                    />
+                    <span>
+                      <strong>{t.recent}</strong>
+                      <small>
+                        {format(t.level, { n: recent.levelIndex + 1 })} ·{" "}
+                        {format(t.completed, {
+                          done: recent.pieces.filter(
+                            (p) => p.status === "locked",
+                          ).length,
+                          total: recent.pieces.length,
+                        })}
+                      </small>
+                    </span>
+                  </>
+                ) : (
+                  <span>
+                    <strong>{t.recent}</strong>
+                    <small>{t.noSave}</small>
+                  </span>
+                )}
+              </button>
+              {LEVELS.map((item, index) => (
+                <button
+                  className="level-card"
+                  key={item.count}
+                  onClick={() => startLevel(index)}
+                >
+                  <b>0{index + 1}</b>
+                  <span>
+                    <strong>{format(t.level, { n: index + 1 })}</strong>
+                    <small>
+                      {item.rows} × {item.columns} ·{" "}
+                      {format(t.pieces, { n: item.count })}
+                    </small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+      {screen === "game" && activeImage && (
         <section className={`game-screen ${complete ? "is-complete" : ""}`}>
           <header className="game-header">
-            <span>第 {levelIndex + 1} 关</span>
-            <strong>{level.count} 块</strong>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => {
+                setScreen("levels");
+                setDrawerOpen(false);
+              }}
+              aria-label={t.choose}
+            >
+              <ChevronDown className="back-chevron" />
+            </Button>
+            <span>{format(t.level, { n: levelIndex + 1 })}</span>
+            <strong>{format(t.pieces, { n: level.count })}</strong>
+            <button
+              className="drawer-toggle"
+              onClick={() => setDrawerOpen((value) => !value)}
+              aria-expanded={drawerOpen}
+            >
+              {t.drawer}
+              <ChevronDown />
+            </button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setView({ scale: 1, x: 0, y: 0 })}
+              aria-label={t.resetView}
+            >
+              <Move />
+            </Button>
+            {languageButton}
           </header>
-
-          <div ref={stageRef} className="game-stage">
+          {!complete && (
+            <aside className={`top-drawer ${drawerOpen ? "open" : ""}`}>
+              <p>{t.drawerHint}</p>
+              <div className="drawer-scroll">
+                {waitingPieces.map((piece) => (
+                  <button
+                    key={piece.id}
+                    className="drawer-piece"
+                    onPointerDown={(event) => {
+                      holdTimerRef.current = window.setTimeout(
+                        () =>
+                          startDrag(
+                            piece.id,
+                            event,
+                            piece.status === "waiting",
+                          ),
+                        320,
+                      );
+                    }}
+                    onPointerUp={() => {
+                      if (holdTimerRef.current)
+                        window.clearTimeout(holdTimerRef.current);
+                    }}
+                    onPointerCancel={() => {
+                      if (holdTimerRef.current)
+                        window.clearTimeout(holdTimerRef.current);
+                    }}
+                    aria-label={format(t.movePiece, {
+                      r: piece.row + 1,
+                      c: piece.column + 1,
+                    })}
+                  >
+                    <PieceCanvas
+                      image={activeImage}
+                      piece={piece}
+                      rows={level.rows}
+                      columns={level.columns}
+                    />
+                  </button>
+                ))}
+              </div>
+            </aside>
+          )}
+          <div
+            ref={stageRef}
+            className="game-stage"
+            onPointerDown={gestureDown}
+            onPointerMove={gestureMove}
+            onPointerUp={gestureUp}
+            onPointerCancel={gestureUp}
+          >
             {!complete && (
-              <div className={`slot-column slot-column-left slots-${tray.left.length}`}>
-                {tray.left.map((id, index) => renderSlot(id, "left", index))}
+              <div className="slot-column slot-column-left">
+                {tray.left.map((id, i) => renderSlot(id, "left", i))}
               </div>
             )}
-
-            <div ref={boardRef} className="puzzle-board">
-              {complete ? (
-                <FinalCanvas
-                  image={activeImage}
-                  pieces={pieces}
-                  rows={level.rows}
-                  columns={level.columns}
-                  canvasRef={exportCanvasRef}
-                />
-              ) : (
-                <>
-                  <GuideCanvas
+            <div
+              className="board-transform"
+              style={{
+                transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
+              }}
+            >
+              <div ref={boardRef} className="puzzle-board">
+                {complete ? (
+                  <FinalCanvas
+                    image={activeImage}
                     pieces={pieces}
                     rows={level.rows}
                     columns={level.columns}
+                    canvasRef={exportCanvasRef}
                   />
-                  {pieces
-                    .filter((piece) => piece.status === "locked")
-                    .map((piece) => {
-                      const metrics = getPieceMetrics(
-                        piece,
-                        level.rows,
-                        level.columns,
-                      );
-                      return (
-                        <div
-                          className="locked-piece"
-                          key={piece.id}
-                          style={{
-                            left: `${((metrics.cellX - metrics.pad) / FRAME_WIDTH) * 100}%`,
-                            top: `${((metrics.cellY - metrics.pad) / FRAME_HEIGHT) * 100}%`,
-                            width: `${(metrics.canvasWidth / FRAME_WIDTH) * 100}%`,
-                            height: `${(metrics.canvasHeight / FRAME_HEIGHT) * 100}%`,
-                            zIndex: piece.zIndex,
-                          }}
-                        >
-                          <PieceCanvas
-                            image={activeImage}
-                            piece={piece}
-                            rows={level.rows}
-                            columns={level.columns}
-                          />
-                        </div>
-                      );
-                    })}
-                </>
-              )}
+                ) : (
+                  <>
+                    <GuideCanvas
+                      pieces={pieces}
+                      rows={level.rows}
+                      columns={level.columns}
+                    />
+                    {pieces
+                      .filter((p) => p.status === "locked")
+                      .map((piece) => {
+                        const m = getPieceMetrics(
+                          piece,
+                          level.rows,
+                          level.columns,
+                        );
+                        return (
+                          <div
+                            className="locked-piece"
+                            key={piece.id}
+                            style={{
+                              left: `${((m.cellX - m.pad) / FRAME_WIDTH) * 100}%`,
+                              top: `${((m.cellY - m.pad) / FRAME_HEIGHT) * 100}%`,
+                              width: `${(m.canvasWidth / FRAME_WIDTH) * 100}%`,
+                              height: `${(m.canvasHeight / FRAME_HEIGHT) * 100}%`,
+                              zIndex: piece.zIndex,
+                            }}
+                          >
+                            <PieceCanvas
+                              image={activeImage}
+                              piece={piece}
+                              rows={level.rows}
+                              columns={level.columns}
+                            />
+                          </div>
+                        );
+                      })}
+                  </>
+                )}
+              </div>
             </div>
-
             {!complete && (
-              <div className={`slot-column slot-column-right slots-${tray.right.length}`}>
-                {tray.right.map((id, index) => renderSlot(id, "right", index))}
+              <div className="slot-column slot-column-right">
+                {tray.right.map((id, i) => renderSlot(id, "right", i))}
               </div>
             )}
-
             {!complete &&
               pieces
-                .filter((piece) => piece.status === "free")
+                .filter((p) => p.status === "free")
                 .map((piece) => {
                   const position = freePositions[piece.id];
-                  if (!position || !stageSize.width || !boardSize.width) return null;
-                  const metrics = getPieceMetrics(
-                    piece,
-                    level.rows,
-                    level.columns,
-                  );
-                  const scale = boardSize.width / FRAME_WIDTH;
+                  if (!position || !stageSize.width || !boardSize.width)
+                    return null;
+                  const m = getPieceMetrics(piece, level.rows, level.columns),
+                    scale = (boardSize.width / FRAME_WIDTH) * view.scale;
                   return (
                     <button
                       type="button"
@@ -1159,12 +1580,15 @@ export function PuzzleGame() {
                       style={{
                         left: `${position.x * 100}%`,
                         top: `${position.y * 100}%`,
-                        width: `${metrics.canvasWidth * scale}px`,
-                        height: `${metrics.canvasHeight * scale}px`,
+                        width: m.canvasWidth * scale,
+                        height: m.canvasHeight * scale,
                         zIndex: piece.zIndex + 20,
                       }}
                       onPointerDown={(event) => startDrag(piece.id, event)}
-                      aria-label={`移动第 ${piece.row + 1} 行第 ${piece.column + 1} 列拼图`}
+                      aria-label={format(t.movePiece, {
+                        r: piece.row + 1,
+                        c: piece.column + 1,
+                      })}
                     >
                       <PieceCanvas
                         image={activeImage}
@@ -1176,33 +1600,34 @@ export function PuzzleGame() {
                   );
                 })}
           </div>
-
           {complete && (
             <div className="result-actions">
               <Button variant="outline" onClick={() => void exportArtwork()}>
                 <Download />
-                导出图片
+                {t.export}
               </Button>
               <Button variant="outline" onClick={restartLevel}>
                 <RotateCcw />
-                重新开始
+                {t.restart}
               </Button>
-              {levelIndex === 0 ? (
-                <Button className="primary-action" onClick={nextLevel}>
-                  下一关
+              {levelIndex < LEVELS.length - 1 ? (
+                <Button
+                  className="primary-action"
+                  onClick={() => beginLevel(levelIndex + 1)}
+                >
+                  {t.next}
                   <ArrowRight />
                 </Button>
               ) : (
                 <Button className="primary-action" onClick={openGallery}>
                   <Images />
-                  返回图库
+                  {t.back}
                 </Button>
               )}
             </div>
           )}
         </section>
       )}
-
       <AlertDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => {
@@ -1211,20 +1636,20 @@ export function PuzzleGame() {
       >
         <AlertDialogContent className="delete-dialog">
           <AlertDialogHeader>
-            <AlertDialogTitle>删除这张图片？</AlertDialogTitle>
-            <AlertDialogDescription>
-              图片将从当前设备的图库中删除，无法恢复。
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t.deleteTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{t.deleteBody}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => void confirmDelete()}>
-              删除
+            <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => void confirmDelete()}
+            >
+              {t.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
       <Toaster theme="dark" position="top-center" />
     </main>
   );
