@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "拼图",
+  title: "Puzzley · 拼图",
   description: "上传自己的图片，完成传统拼图并导出透明 PNG。",
   icons: {
     icon: "/favicon.svg",
@@ -14,7 +14,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#07131c",
+  themeColor: "#f7efdf",
 };
 
 export default function RootLayout({

@@ -28,7 +28,7 @@ test("renders the Chinese puzzle entry screen", async () => {
   );
   const html = await response.text();
   assert.match(html, /<html[^>]*lang=["']zh-CN["']/i);
-  assert.match(html, /<title>拼图<\/title>/i);
+  assert.match(html, /<title>Puzzley · 拼图<\/title>/i);
   assert.match(html, />开始</);
-  assert.match(html, />拼图</);
+  assert.match(html, />Puzzley</);
 });
