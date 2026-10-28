@@ -8,7 +8,6 @@ import {
   useState,
 } from "react";
 import {
-  ArrowRight,
   ChevronDown,
   Download,
   Globe2,
@@ -536,18 +535,50 @@ function buildPiecePath(piece: PuzzlePiece, rows: number, columns: number) {
   return path;
 }
 
+// All relief dimensions live in the fixed artwork coordinate system. Small
+// puzzles get delicate edges; dense puzzles never inherit a six-pixel outline.
+function reliefWidth(rows: number, columns: number) {
+  return Math.max(0.65, Math.min(2.4, Math.min(FRAME_WIDTH / columns, FRAME_HEIGHT / rows) * 0.009));
+}
+
 function makeCheckerPattern(context: CanvasRenderingContext2D) {
   const tile = document.createElement("canvas");
-  tile.width = 64;
-  tile.height = 64;
-  const tileContext = tile.getContext("2d");
-  if (!tileContext) return "rgba(110, 243, 197, 0.18)";
-  tileContext.fillStyle = "rgba(255,255,255,0.11)";
-  tileContext.fillRect(0, 0, 64, 64);
-  tileContext.fillStyle = "rgba(110,243,197,0.14)";
-  tileContext.fillRect(0, 0, 32, 32);
-  tileContext.fillRect(32, 32, 32, 32);
-  return context.createPattern(tile, "repeat") ?? "rgba(110,243,197,0.18)";
+  tile.width = tile.height = 48;
+  const ctx = tile.getContext("2d");
+  if (!ctx) return "rgba(155,126,90,0.04)";
+  ctx.fillStyle = "rgba(255,251,243,0.30)";
+  ctx.fillRect(0, 0, 48, 48);
+  ctx.fillStyle = "rgba(140,109,73,0.045)";
+  ctx.fillRect(0, 0, 24, 24);
+  ctx.fillRect(24, 24, 24, 24);
+  return context.createPattern(tile, "repeat") ?? "rgba(155,126,90,0.04)";
+}
+
+// Shifted strokes clipped to the face produce directional bevels instead of
+// concentric dark/white rings. Light comes from the top left throughout the UI.
+function drawFaceRelief(context: CanvasRenderingContext2D, path: Path2D, width: number) {
+  context.save();
+  context.clip(path);
+  context.lineJoin = "round";
+  context.lineCap = "round";
+  context.save();
+  context.translate(-width * 0.85, -width * 0.85);
+  context.strokeStyle = "rgba(57,38,23,0.22)";
+  context.lineWidth = width * 1.7;
+  context.shadowColor = "rgba(61,39,21,0.18)";
+  context.shadowBlur = width * 1.5;
+  context.stroke(path);
+  context.restore();
+  context.save();
+  context.translate(width * 0.6, width * 0.6);
+  context.strokeStyle = "rgba(255,253,245,0.60)";
+  context.lineWidth = width * 1.1;
+  context.stroke(path);
+  context.restore();
+  context.strokeStyle = "rgba(70,47,29,0.16)";
+  context.lineWidth = Math.max(0.45, width * 0.32);
+  context.stroke(path);
+  context.restore();
 }
 
 function drawPiece(
@@ -566,38 +597,39 @@ function drawPiece(
   context.save();
   context.translate(metrics.pad - metrics.cellX, metrics.pad - metrics.cellY);
   const path = buildPiecePath(piece, rows, columns);
-
-  context.save();
-  context.shadowColor = "rgba(0, 0, 0, 0.42)";
-  context.shadowBlur = 18;
-  context.shadowOffsetY = 8;
-  context.fillStyle = makeCheckerPattern(context);
-  context.fill(path);
-  context.restore();
-
+  const width = reliefWidth(rows, columns);
+  const loose = piece.status !== "locked";
+  if (loose) {
+    // The opaque silhouette casts a clean shadow even for transparent photos.
+    // This temporary cardboard backing never enters the finished PNG.
+    context.save();
+    context.translate(width * 0.45, width * 1.1);
+    context.shadowColor = "rgba(76,49,25,0.25)";
+    context.shadowBlur = width * 3;
+    context.shadowOffsetX = width * 0.7;
+    context.shadowOffsetY = width * 2;
+    context.fillStyle = "#b79970";
+    context.fill(path);
+    context.restore();
+    context.save();
+    context.translate(width * 0.25, width * 0.55);
+    context.fillStyle = "#d4bb95";
+    context.fill(path);
+    context.restore();
+  }
   context.save();
   context.clip(path);
+  context.fillStyle = "#f7efdf";
+  context.fillRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
   context.fillStyle = makeCheckerPattern(context);
   context.fillRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
   context.drawImage(image, 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
   context.restore();
-
-  context.lineJoin = "round";
-  context.strokeStyle = "rgba(3, 20, 28, 0.58)";
-  context.lineWidth = 6;
-  context.stroke(path);
-  context.strokeStyle = "rgba(255, 255, 255, 0.64)";
-  context.lineWidth = 2;
-  context.stroke(path);
+  drawFaceRelief(context, path, width);
   context.restore();
 }
 
-function drawGuide(
-  canvas: HTMLCanvasElement,
-  pieces: PuzzlePiece[],
-  rows: number,
-  columns: number,
-) {
+function drawGuide(canvas: HTMLCanvasElement, pieces: PuzzlePiece[], rows: number, columns: number) {
   canvas.width = FRAME_WIDTH;
   canvas.height = FRAME_HEIGHT;
   const context = canvas.getContext("2d");
@@ -606,15 +638,9 @@ function drawGuide(
   context.fillStyle = makeCheckerPattern(context);
   context.fillRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
   context.lineJoin = "round";
-  for (const piece of pieces) {
-    const path = buildPiecePath(piece, rows, columns);
-    context.strokeStyle = "rgba(110, 243, 197, 0.34)";
-    context.lineWidth = 5;
-    context.stroke(path);
-    context.strokeStyle = "rgba(255, 255, 255, 0.24)";
-    context.lineWidth = 2;
-    context.stroke(path);
-  }
+  context.strokeStyle = "rgba(129, 97, 62, 0.12)";
+  context.lineWidth = Math.max(0.6, reliefWidth(rows, columns) * 0.45);
+  for (const piece of pieces) context.stroke(buildPiecePath(piece, rows, columns));
 }
 
 function drawFinalArtwork(
@@ -629,31 +655,19 @@ function drawFinalArtwork(
   const context = canvas.getContext("2d");
   if (!context) return;
   context.clearRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
-  context.imageSmoothingEnabled = true;
-  context.imageSmoothingQuality = "high";
-
-  // Build the decorative puzzle treatment on a separate layer, then mask the
-  // entire layer with the source alpha. This keeps transparent margins, holes,
-  // and partially transparent pixels genuinely transparent in previews/PNGs.
+  // Source is already normalized. A 1:1 copy avoids sampling alpha from a
+  // neighboring opaque pixel into transparent padding or internal PNG holes.
+  context.imageSmoothingEnabled = false;
+  context.drawImage(image, 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
   const effects = document.createElement("canvas");
   effects.width = FRAME_WIDTH;
   effects.height = FRAME_HEIGHT;
   const effectContext = effects.getContext("2d");
   if (!effectContext) return;
-
-  for (const piece of pieces) {
-    const path = buildPiecePath(piece, rows, columns);
-    effectContext.lineJoin = "round";
-    effectContext.strokeStyle = "rgba(3, 13, 19, 0.4)";
-    effectContext.lineWidth = 5;
-    effectContext.stroke(path);
-    effectContext.strokeStyle = "rgba(255, 255, 255, 0.38)";
-    effectContext.lineWidth = 2;
-    effectContext.stroke(path);
-  }
-  effectContext.globalCompositeOperation = "destination-in";
-  effectContext.drawImage(image, 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
-  context.drawImage(image, 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+  const width = reliefWidth(rows, columns);
+  for (const piece of pieces) drawFaceRelief(effectContext, buildPiecePath(piece, rows, columns), width);
+  // Source-atop preserves the exact original alpha, including translucent
+  // pixels, and puts NO relief, backing or shadow in transparent areas.
   context.globalCompositeOperation = "source-atop";
   context.drawImage(effects, 0, 0);
   context.globalCompositeOperation = "source-over";
@@ -1252,15 +1266,12 @@ export function PuzzleGame() {
       {screen === "start" && (
         <section className="start-screen">
           {languageButton}
-          <div className="start-grid" aria-hidden="true" />
           <div className="start-lockup">
-            <div className="start-mark" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
-            <h1>拼图</h1>
+            <h1>
+              <span className="sr-only">Puzzley</span>
+              <img className="brand-wordmark" src="/images/puzzley-wordmark.png" alt="" width="2048" height="768" fetchPriority="high" />
+            </h1>
+            <img className="start-artwork" src="/images/puzzley-album.png" alt="" width="1536" height="1024" fetchPriority="high" />
             <Button
               className="primary-action"
               size="lg"
@@ -1270,7 +1281,6 @@ export function PuzzleGame() {
               }}
             >
               {t.start}
-              <ArrowRight />
             </Button>
           </div>
         </section>
@@ -1279,7 +1289,7 @@ export function PuzzleGame() {
         <section className="gallery-screen">
           <header className="gallery-header">
             <div>
-              <p className="eyebrow">PUZZLEY</p>
+              <img className="brand-small" src="/images/puzzley-wordmark.png" alt="Puzzley" width="2048" height="768" />
               <h1>{t.gallery}</h1>
             </div>
             <div className="header-actions">
@@ -1359,7 +1369,7 @@ export function PuzzleGame() {
             {languageButton}
           </header>
           <div className="level-content">
-            <p className="eyebrow">PUZZLEY</p>
+            <img className="brand-small" src="/images/puzzley-wordmark.png" alt="Puzzley" width="2048" height="768" />
             <h1>{t.choose}</h1>
             <div className="level-grid">
               <button
@@ -1616,8 +1626,7 @@ export function PuzzleGame() {
                   onClick={() => beginLevel(levelIndex + 1)}
                 >
                   {t.next}
-                  <ArrowRight />
-                </Button>
+                    </Button>
               ) : (
                 <Button className="primary-action" onClick={openGallery}>
                   <Images />
@@ -1650,7 +1659,7 @@ export function PuzzleGame() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <Toaster theme="dark" position="top-center" />
+      <Toaster theme="light" position="top-center" />
     </main>
   );
 }
