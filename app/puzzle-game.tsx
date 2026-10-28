@@ -635,12 +635,24 @@ function drawGuide(canvas: HTMLCanvasElement, pieces: PuzzlePiece[], rows: numbe
   const context = canvas.getContext("2d");
   if (!context) return;
   context.clearRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
-  context.fillStyle = makeCheckerPattern(context);
-  context.fillRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+  // The transparent guide sits over the wooden bed. Use the actual generated
+  // contours so every difficulty (and restored game) matches its own pieces.
+  const grooves = new Path2D();
+  for (const piece of pieces) grooves.addPath(buildPiecePath(piece, rows, columns));
+  const width = reliefWidth(rows, columns);
   context.lineJoin = "round";
-  context.strokeStyle = "rgba(129, 97, 62, 0.12)";
-  context.lineWidth = Math.max(0.6, reliefWidth(rows, columns) * 0.45);
-  for (const piece of pieces) context.stroke(buildPiecePath(piece, rows, columns));
+  context.lineCap = "round";
+  context.save();
+  context.translate(width * 0.55, width * 0.65);
+  context.strokeStyle = "rgba(242, 191, 128, 0.52)";
+  context.lineWidth = width * 1.25;
+  context.stroke(grooves);
+  context.restore();
+  context.strokeStyle = "rgba(39, 19, 9, 0.85)";
+  context.lineWidth = width;
+  context.shadowColor = "rgba(28, 13, 5, 0.45)";
+  context.shadowBlur = width * 1.2;
+  context.stroke(grooves);
 }
 
 function drawFinalArtwork(
@@ -1510,7 +1522,7 @@ export function PuzzleGame() {
           >
             {!complete && (
               <div className="slot-column slot-column-left">
-                {tray.left.map((id, i) => renderSlot(id, "left", i))}
+                {Array.from({ length: 3 }, (_, i) => renderSlot(tray.left[i] ?? null, "left", i))}
               </div>
             )}
             <div
@@ -1519,58 +1531,60 @@ export function PuzzleGame() {
                 transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
               }}
             >
-              <div ref={boardRef} className="puzzle-board">
-                {complete ? (
-                  <FinalCanvas
-                    image={activeImage}
-                    pieces={pieces}
-                    rows={level.rows}
-                    columns={level.columns}
-                    canvasRef={exportCanvasRef}
-                  />
-                ) : (
-                  <>
-                    <GuideCanvas
+              <div className="wooden-frame">
+                <div ref={boardRef} className="puzzle-board">
+                  {complete ? (
+                    <FinalCanvas
+                      image={activeImage}
                       pieces={pieces}
                       rows={level.rows}
                       columns={level.columns}
+                      canvasRef={exportCanvasRef}
                     />
-                    {pieces
-                      .filter((p) => p.status === "locked")
-                      .map((piece) => {
-                        const m = getPieceMetrics(
-                          piece,
-                          level.rows,
-                          level.columns,
-                        );
-                        return (
-                          <div
-                            className="locked-piece"
-                            key={piece.id}
-                            style={{
-                              left: `${((m.cellX - m.pad) / FRAME_WIDTH) * 100}%`,
-                              top: `${((m.cellY - m.pad) / FRAME_HEIGHT) * 100}%`,
-                              width: `${(m.canvasWidth / FRAME_WIDTH) * 100}%`,
-                              height: `${(m.canvasHeight / FRAME_HEIGHT) * 100}%`,
-                              zIndex: piece.zIndex,
-                            }}
-                          >
-                            <PieceCanvas
-                              image={activeImage}
-                              piece={piece}
-                              rows={level.rows}
-                              columns={level.columns}
-                            />
-                          </div>
-                        );
-                      })}
-                  </>
-                )}
+                  ) : (
+                    <>
+                      <GuideCanvas
+                        pieces={pieces}
+                        rows={level.rows}
+                        columns={level.columns}
+                      />
+                      {pieces
+                        .filter((p) => p.status === "locked")
+                        .map((piece) => {
+                          const m = getPieceMetrics(
+                            piece,
+                            level.rows,
+                            level.columns,
+                          );
+                          return (
+                            <div
+                              className="locked-piece"
+                              key={piece.id}
+                              style={{
+                                left: `${((m.cellX - m.pad) / FRAME_WIDTH) * 100}%`,
+                                top: `${((m.cellY - m.pad) / FRAME_HEIGHT) * 100}%`,
+                                width: `${(m.canvasWidth / FRAME_WIDTH) * 100}%`,
+                                height: `${(m.canvasHeight / FRAME_HEIGHT) * 100}%`,
+                                zIndex: piece.zIndex,
+                              }}
+                            >
+                              <PieceCanvas
+                                image={activeImage}
+                                piece={piece}
+                                rows={level.rows}
+                                columns={level.columns}
+                              />
+                            </div>
+                          );
+                        })}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
             {!complete && (
               <div className="slot-column slot-column-right">
-                {tray.right.map((id, i) => renderSlot(id, "right", i))}
+                {Array.from({ length: 3 }, (_, i) => renderSlot(tray.right[i] ?? null, "right", i))}
               </div>
             )}
             {!complete &&

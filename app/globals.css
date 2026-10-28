@@ -374,36 +374,96 @@ button {
   font-weight: 800;
 }
 
+/* The frame is outside the measured artwork: drag/snap coordinates stay 3:2. */
 .game-stage {
+  --tray-rim: clamp(8px, 3vw, 48px);
   position: relative;
   display: grid;
+  width: min(100%, 1640px);
   min-height: 0;
   flex: 1;
-  grid-template-columns: clamp(54px, 14vw, 112px) minmax(0, 1fr) clamp(54px, 14vw, 112px);
+  margin-inline: auto;
+  grid-template-columns: clamp(54px, 12.5vw, 200px) minmax(0, 1fr) clamp(54px, 12.5vw, 200px);
   align-items: center;
-  gap: clamp(5px, 1.6vw, 22px);
+  gap: clamp(6px, 1.2vw, 20px);
+  padding-block: 18px;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
 }
 
-.puzzle-board {
-  position: relative;
-  width: min(100%, calc((100dvh - 92px) * 1.5));
-  max-width: 940px;
-  aspect-ratio: 3 / 2;
+.board-transform {
+  min-width: 0;
+  width: min(100%, calc((100dvh - 156px) * 1.42));
+  max-width: 1180px;
   justify-self: center;
-  overflow: hidden;
-  border: 1px solid rgba(119, 79, 45, 0.34);
-  border-radius: clamp(8px, 1.8vw, 18px);
-  background: #eee3cf;
-  box-shadow:
-    0 24px 65px rgba(0, 0, 0, 0.32),
-    inset 0 0 0 5px rgba(255, 255, 255, 0.025);
+  transform-origin: center;
+  will-change: transform;
 }
 
-.board-transform { min-width: 0; width: min(100%, calc((100dvh - 92px) * 1.5)); max-width: 940px; aspect-ratio: 3 / 2; justify-self: center; transform-origin: center; will-change: transform; }
-.board-transform .puzzle-board { width: 100%; height: 100%; }
+.wooden-frame {
+  position: relative;
+  width: 100%;
+  padding: var(--tray-rim);
+  border: 1px solid #61351e;
+  border-radius: clamp(12px, 2vw, 30px);
+  background: linear-gradient(135deg, #e9b07b38, #1f0d0826), url("/images/walnut-texture.webp") center / cover, #88502e;
+  box-shadow:
+    inset 0 2px 2px #ffe1b88c,
+    inset 2px 0 3px #efb47e4d,
+    inset -2px -4px 4px #35180999,
+    0 4px 2px #542c1b,
+    0 20px 36px #79522e26;
+}
+
+.wooden-frame::before,
+.wooden-frame::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+/* Fine diagonal joins on the four corners of the wooden rim. */
+.wooden-frame::before {
+  inset: 3px;
+  border-radius: inherit;
+  background:
+    linear-gradient(45deg, transparent 49%, #35190b55 50%, #ffd6a333 51%, transparent 52%) top left,
+    linear-gradient(-45deg, transparent 49%, #35190b55 50%, #ffd6a333 51%, transparent 52%) top right,
+    linear-gradient(-45deg, transparent 49%, #35190b55 50%, #ffd6a333 51%, transparent 52%) bottom left,
+    linear-gradient(45deg, transparent 49%, #35190b55 50%, #ffd6a333 51%, transparent 52%) bottom right;
+  background-size: var(--tray-rim) var(--tray-rim);
+  background-repeat: no-repeat;
+}
+
+.wooden-frame::after {
+  inset: calc(var(--tray-rim) - 3px);
+  border: 1px solid #341709;
+  border-radius: clamp(6px, 1vw, 14px);
+  box-shadow: 0 1px 2px 1px #efb77e85, inset 0 2px 4px #1e0b07a6;
+}
+
+.puzzle-board {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  border: 0;
+  border-radius: clamp(4px, .8vw, 11px);
+  background: linear-gradient(180deg, #29120830, #c2884b0d 55%, #30170b29), url("/images/walnut-texture.webp") center / cover, #7d492a;
+  /* Inset shading is above the guide and pieces, like the lip of a real tray. */
+  isolation: isolate;
+}
+
+.puzzle-board::after {
+  content: "";
+  position: absolute;
+  z-index: 10;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 3px 5px 9px #200e08ba, inset -1px -2px 3px #efb77e59;
+  pointer-events: none;
+}
 
 .board-canvas {
   position: absolute;
@@ -423,21 +483,21 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(7px, 1.7vh, 16px);
+  gap: clamp(10px, 2.8vh, 28px);
 }
 
 .piece-slot {
   display: grid;
   width: 100%;
-  max-width: 105px;
+  max-width: min(200px, calc((100dvh - 160px) / 3));
   aspect-ratio: 1;
   place-items: center;
   overflow: visible;
-  border: 1px solid rgba(119, 79, 45, 0.16);
-  border-radius: clamp(9px, 2vw, 16px);
-  padding: clamp(3px, 0.7vw, 8px);
-  background: rgba(255, 251, 244, 0.86);
-  box-shadow: inset 0 0 24px rgba(174, 115, 68, 0.035);
+  border: 2px solid #e5d2bba6;
+  border-radius: clamp(12px, 2vw, 30px);
+  padding: clamp(4px, 1vw, 16px);
+  background: #fffdf6b3;
+  box-shadow: inset 0 1px 3px #fff8, 0 2px 6px #96754e05;
   cursor: grab;
   touch-action: none;
 }
@@ -446,7 +506,7 @@ button {
   cursor: grabbing;
 }
 
-.piece-slot:hover {
+.piece-slot:hover:not(.empty) {
   border-color: rgba(174, 115, 68, 0.46);
 }
 
@@ -490,14 +550,8 @@ button {
 .game-screen.is-complete .game-stage {
   grid-template-columns: minmax(0, 1fr);
 }
-.game-screen.is-complete .board-transform { width: min(94vw, calc((100dvh - 170px) * 1.5), 940px); }
-
-.game-screen.is-complete .puzzle-board {
-  width: min(94vw, calc((100dvh - 170px) * 1.5), 940px);
-  border-color: rgba(174, 115, 68, 0.54);
-  box-shadow:
-    0 26px 80px rgba(0, 0, 0, 0.38),
-    0 0 46px rgba(174, 115, 68, 0.1);
+.game-screen.is-complete .board-transform {
+  width: min(94vw, calc((100dvh - 230px) * 1.42), 1180px);
 }
 
 .result-actions {
@@ -572,12 +626,16 @@ button {
   }
 
   .game-stage {
-    grid-template-columns: clamp(58px, 11vw, 104px) minmax(0, 1fr) clamp(58px, 11vw, 104px);
+    --tray-rim: clamp(8px, 3vh, 22px);
+    grid-template-columns: clamp(58px, 14vw, 160px) minmax(0, 1fr) clamp(58px, 14vw, 160px);
+    padding-block: 10px;
   }
 
-  .puzzle-board {
-    width: min(100%, calc((100dvh - 54px) * 1.5));
+  .board-transform {
+    width: min(100%, calc((100dvh - 88px) * 1.42));
   }
+  .piece-slot { max-width: min(160px, calc((100dvh - 110px) / 3)); }
+  .slot-column { gap: 10px; }
 
   .result-actions {
     min-height: 58px;
@@ -588,8 +646,8 @@ button {
     min-height: 40px;
   }
 
-  .game-screen.is-complete .puzzle-board {
-    width: min(76vw, calc((100dvh - 106px) * 1.5), 940px);
+  .game-screen.is-complete .board-transform {
+    width: min(90vw, calc((100dvh - 150px) * 1.42));
   }
 }
 
@@ -689,17 +747,14 @@ button:focus-visible { outline: 3px solid #a9673e; outline-offset: 4px; }
 .level-card small { font-size: .875rem; }
 .level-card.recent-card { padding: 14px; border-style: dashed; background: #f1e2ce; gap: 20px; }
 .level-card.recent-card > img { border: 5px solid #fffaf0; border-bottom-width: 12px; border-radius: 2px; background: #fffaf0; box-shadow: 0 3px 9px #77533315; }
-.game-screen { background: #f4ead9; min-height: 0; }
+.game-screen { background: radial-gradient(ellipse at center, #fffaf0, #f4ead9); min-height: 0; }
 .game-header { border-bottom: 1px solid #bc997438; padding-bottom: 5px; }
 .game-header strong { color: #995c33; }
-.puzzle-board { border: 1px solid #b99977; border-radius: 4px; box-shadow: 0 0 0 6px #fffcf4, 0 0 0 7px #d5c1a4, 0 16px 38px #76502b22; }
-.piece-slot { box-shadow: inset 0 2px 8px #96754e0c; border-color: #c7ab8870; }
-.piece-slot.empty { opacity: .45; border-style: dashed; }
+.piece-slot.empty { cursor: default; }
 .piece-slot .piece-canvas { filter: none; }
 .free-piece.is-dragging { filter: drop-shadow(0 6px 8px #63452b20); }
 .top-drawer { box-shadow: 0 12px 28px #76502b24; }
 .drawer-piece { background: #f5ead8; border-color: #cfb99c; }
-.game-screen.is-complete .puzzle-board { border-color: #c3a480; box-shadow: 0 0 0 8px #fffaf0, 0 0 0 9px #dbc8ae, 0 20px 48px #76502b25; }
 .result-actions button[data-variant="outline"] { background: #fffaf0; border-color: #cab395; }
 .delete-dialog { background: #fffaf1; border-color: #d4bca0; box-shadow: 0 22px 80px #583d2b30; }
 @media (min-width: 800px) and (min-height: 621px) {
